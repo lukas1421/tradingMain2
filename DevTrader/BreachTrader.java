@@ -30,7 +30,7 @@ import static utility.Utility.*;
 
 public class BreachTrader implements LiveHandler, ApiController.IPositionHandler {
 
-    private static final String HEDGER_INDEX = "MES";
+    private static final String HEDGER_INDEX = "SPY";
 
     static final int MAX_LIQ_ATTEMPTS = 100;
     private static final double MAX_ENTRY_DEV = 0.05;
@@ -58,7 +58,7 @@ public class BreachTrader implements LiveHandler, ApiController.IPositionHandler
 
     private static ScheduledExecutorService es = Executors.newScheduledThreadPool(10);
 
-    private static final double PTF_NAV = 900000;
+    private static final double PTF_NAV = 890000;
     private static final double MAX_DELTA_PER_TRADE = 500000;
 
     public static Map<Currency, Double> fx = new HashMap<>();
@@ -120,8 +120,8 @@ public class BreachTrader implements LiveHandler, ApiController.IPositionHandler
         }
 
         //registerContract(getActiveA50Contract());
-        registerContract(getActiveMNQContract());
-        registerContract(getActiveMESContract());
+        //registerContract(getActiveMNQContract());
+        //registerContract(getActiveMESContract());
         //registerContract(getUSStockContract("BRK B"));
 
 
@@ -343,19 +343,6 @@ public class BreachTrader implements LiveHandler, ApiController.IPositionHandler
     }
 
 
-    private static void halfYinearTrader(Contract ct, double price, LocalDateTime t, double halfYOpen) {
-        String symbol = ibContractToSymbol(ct);
-        double pos = symbolPosMap.get(symbol);
-        boolean added = addedMap.containsKey(symbol) && addedMap.get(symbol).get();
-        double posToAdd = 100;
-
-        if (!added && pos != 0.0 && price > halfYOpen) {
-
-
-        }
-    }
-
-
     /**
      * add singles
      *
@@ -489,7 +476,7 @@ public class BreachTrader implements LiveHandler, ApiController.IPositionHandler
         boolean added = addedMap.containsKey(symbol) && addedMap.get(symbol).get();
 
         if (!liquidated && !added && totalDelta != 0.0) {
-            if (totalDelta > PTF_NAV && price < yStart) {
+            if (totalDelta > PTF_NAV && price < yStart && pos > 0.0) {
                 double excessDelta = totalDelta - PTF_NAV;
                 double sharesToSell = Math.floor(excessDelta / 2.0 / price / 100.0) * 100.0;
                 if (sharesToSell >= 200.0) {
@@ -546,7 +533,6 @@ public class BreachTrader implements LiveHandler, ApiController.IPositionHandler
                 outputToSymbolFile(symbol, str(o.orderId(), id, "Cutter BUY:",
                         "added?" + added, devOrderMap.get(id), "pos", pos, "half Year Max:" + halfYearMax,
                         "price", price), devOutput);
-
             } else if (pos > 0.0 && ((price / halfYearMax - 1) < MAX_DRAWDOWN)) {
                 checkIfAdderPending(symbol);
                 liquidatedMap.put(symbol, new AtomicBoolean(true));
@@ -718,19 +704,19 @@ public class BreachTrader implements LiveHandler, ApiController.IPositionHandler
                                 "mStart", mStart, Math.round(10000d * (price / mStart - 1)) / 100d + "%",
                                 "dStart", dStart, Math.round(10000d * (price / dStart - 1)) / 100d + "%",
                                 "pos", symbolPosMap.getOrDefault(HEDGER_INDEX, 0.0));
-                    } else {
-                        if (usStockOpen(ct, t) && ct.secType() == Types.SecType.STK) {
-                            if (symbol.equalsIgnoreCase("QQQ") || symbol.equalsIgnoreCase("SPY")) {
+                    }
+                    if (usStockOpen(ct, t) && ct.secType() == Types.SecType.STK) {
+                        if (symbol.equalsIgnoreCase("QQQ") || symbol.equalsIgnoreCase("SPY")) {
 //                                indexETFAdder(ct, price, t);
-                                adjustDeltaWithETF(ct, price, t, yStart);
-                            } else {
-                                halfYearCutter(ct, price, t, halfYMax);
-                                if (maxHalfYearDrawdown > MAX_DRAWDOWN) {
-                                    halfYearAdder(ct, price, t, halfYStart);
-                                }
+                            adjustDeltaWithETF(ct, price, t, yStart);
+                        } else {
+                            //halfYearCutter(ct, price, t, halfYMax);
+                            if (maxHalfYearDrawdown > MAX_DRAWDOWN) {
+                                halfYearAdder(ct, price, t, halfYStart);
                             }
                         }
                     }
+
                 }
 
                 if (ytdDayData.get(symbol).containsKey(t.toLocalDate())) {
